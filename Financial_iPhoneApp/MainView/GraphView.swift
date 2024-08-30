@@ -136,14 +136,27 @@ struct GraphView: View {
                         y: .value("amount", dataRow.amount)
                     )
                     .foregroundStyle(by: .value("Category", dataRow.category))
+                    PointMark(
+                        x: .value("month", dataRow.month),
+                        y: .value("amount", dataRow.amount)
+                    )
+                    .foregroundStyle(by: .value("Category", dataRow.category))
                 }
                 .frame(height: 300)
                 .chartYAxis{
                     AxisMarks(position: .leading)
                 }
                 List (categorys){ category in
-                    @State var test = category.toggle
-                    Toggle(isOn: category.toggle) {
+                    //@State var test = changeToggle()
+                    
+                    Toggle(isOn: Binding(
+                        get: {
+                            category.toggle
+                        },
+                        set: { value in
+                            category.toggle = value
+                        }
+                    )) {
                         Text("\(category.categoryName)")
                     }
 //                    Toggle(isOn: $test) {
@@ -162,15 +175,17 @@ struct GraphView: View {
         var monthlyUsage: [LineData] = []
         for month in 1...12 {
             for categoryX in categorys{
-                let monthData = datas.filter { data in
-                    let components = calendar.dateComponents([.year, .month], from: data.selectedDate)
-                    return components.year == selectedYear && components.month == month && data.category == categoryX.categoryName && categoryX.toggle
+                if(categoryX.toggle){
+                    let monthData = datas.filter { data in
+                        let components = calendar.dateComponents([.year, .month], from: data.selectedDate)
+                        return components.year == selectedYear && components.month == month && data.category == categoryX.categoryName
+                    }
+                    let totalAmount = monthData.reduce(0) { $0 + (Int($1.amount) ?? 0) }
+                    let dateComponents = DateComponents(year: selectedYear, month: month)
+                    let monthDate = calendar.date(from: dateComponents)!
+                    let monthString = formatter2.string(from: monthDate)
+                    monthlyUsage.append(LineData(month: monthString, amount: totalAmount, category: categoryX.categoryName))
                 }
-                let totalAmount = monthData.reduce(0) { $0 + (Int($1.amount) ?? 0) }
-                let dateComponents = DateComponents(year: selectedYear, month: month)
-                let monthDate = calendar.date(from: dateComponents)!
-                let monthString = formatter2.string(from: monthDate)
-                monthlyUsage.append(LineData(month: monthString, amount: totalAmount, category: categoryX.categoryName))
             }
         }
         return monthlyUsage
