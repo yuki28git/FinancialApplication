@@ -13,12 +13,24 @@ struct LineData: Identifiable {
     var id = UUID()
     var month: String
     var amount: Int
-    var category: String // カテゴリを追加
+    var category: String
+    
+    init(month: String, amount: Int, category: String) {
+        self.id = UUID()
+        self.month = month
+        self.amount = amount
+        self.category = category
+    }
 }
 
 struct GraphView: View {
     
+    //@State var test = false
+    
+    @State var test2 = true
+    
     @Query private var datas: [TransactionData] // トランザクションデータの取得
+    @Query private var categorys: [CategoryData]
     
     let calendar = Calendar.current
     let formatter = DateFormatter()
@@ -33,14 +45,25 @@ struct GraphView: View {
     private let minYear: Int = 2000
     private let maxYear: Int = 2024
     
-    @State private var isOn: Bool = true
-    @State private var isOn1: Bool = true
-    @State private var isOn2: Bool = true
-    
+    var allCategory = ["食費", "娯楽", "固定費"]
+    var dictionaly = ["食費": 2000, "娯楽": 3000, "固定費": 5000]
+    var dictionaly2 = ["食費": 5000, "娯楽": 4000, "固定費": 5000]
+    var dictionaly0 = [String:Int]()
+
     init() {
         formatter.dateFormat = "yyyy年"
         formatter2.dateFormat = "M月"
         formatter2.locale = Locale(identifier: "ja_JP")
+    }
+
+    
+    // 月ごとにフィルタリングされたトランザクションデータ
+    private var dateFiltered: [TransactionData] {
+        let selectedMonthComponents = Calendar.current.dateComponents([.year, .month], from: selectedDate)
+        return datas.filter {
+            let dataMonthComponents = Calendar.current.dateComponents([.year, .month], from: $0.selectedDate)
+            return dataMonthComponents == selectedMonthComponents
+        }.sorted { $0.selectedDate > $1.selectedDate } // トランザクションデータを日付順にソート
     }
     
     var body: some View {
@@ -118,16 +141,14 @@ struct GraphView: View {
                 .chartYAxis{
                     AxisMarks(position: .leading)
                 }
-                List {
-                    Toggle(isOn: $isOn) {
-                        Text("全体")
+                List (categorys){ category in
+                    @State var test = category.toggle
+                    Toggle(isOn: category.toggle) {
+                        Text("\(category.categoryName)")
                     }
-                    Toggle(isOn: $isOn1) {
-                        Text("カテゴリ1")
-                    }
-                    Toggle(isOn: $isOn2) {
-                        Text("カテゴリ2")
-                    }
+//                    Toggle(isOn: $test) {
+//                        Text(test ? "\(category.categoryName)" : "OFF")
+//                    }
                 }.id(UUID())
             }
         }
@@ -136,22 +157,33 @@ struct GraphView: View {
         }
     }
     
-    // 各月の使用金額を計算する関数
+    //各月の使用金額を計算する関数
     private func calculateMonthlyUsageAmount() -> [LineData] {
         var monthlyUsage: [LineData] = []
         for month in 1...12 {
-            let monthData = datas.filter { data in
-                let components = calendar.dateComponents([.year, .month], from: data.selectedDate)
-                return components.year == selectedYear && components.month == month
+            for categoryX in categorys{
+                let monthData = datas.filter { data in
+                    let components = calendar.dateComponents([.year, .month], from: data.selectedDate)
+                    return components.year == selectedYear && components.month == month && data.category == categoryX.categoryName && categoryX.toggle
+                }
+                let totalAmount = monthData.reduce(0) { $0 + (Int($1.amount) ?? 0) }
+                let dateComponents = DateComponents(year: selectedYear, month: month)
+                let monthDate = calendar.date(from: dateComponents)!
+                let monthString = formatter2.string(from: monthDate)
+                monthlyUsage.append(LineData(month: monthString, amount: totalAmount, category: categoryX.categoryName))
             }
-            let totalAmount = monthData.reduce(0) { $0 + (Int($1.amount) ?? 0) }
-            let dateComponents = DateComponents(year: selectedYear, month: month)
-            let monthDate = calendar.date(from: dateComponents)!
-            let monthString = formatter2.string(from: monthDate)
-            monthlyUsage.append(LineData(month: monthString, amount: totalAmount, category: "all"))
         }
         return monthlyUsage
     }
+    
+//    private func returnCategory() -> [LineData]{
+//        for category in categorys{
+//            let monthData = datas.filter { data in
+//                let components = calendar.dateComponents([.year, .month], from: data.selectedDate)
+//                return category.categoryName
+//            }
+//        }
+//    }
 }
 
 #Preview {
